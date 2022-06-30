@@ -207,14 +207,24 @@ def add_data_field(project, queryset, **kwargs):
         add_expression(queryset, size, value, value_name)
 
     else:
-        queryset.update(
-            data=Func(
-                F("data"),
-                Value([value_name]),
-                Value(value, JSONField()),
-                function="jsonb_set",
+
+        # sqlite
+        if settings.DJANGO_DB == settings.DJANGO_DB_SQLITE:
+            tasks = list(queryset.only('data'))
+            for task in tasks:
+                task.data[value_name] = value
+            Task.objects.bulk_update(tasks, fields=['data'], batch_size=1000)
+
+        # postgres and other DB
+        else:
+            queryset.update(
+                data=Func(
+                    F("data"),
+                    Value([value_name]),
+                    Value(value, JSONField()),
+                    function="jsonb_set",
+                )
             )
-        )
 
     project.summary.update_data_columns([queryset.first()])
     return {'response_code': 200, 'detail': f'Updated {size} tasks'}
@@ -242,6 +252,7 @@ def add_expression(queryset, size, value, value_name):
     command, args = value.split('(')
     args = process_arrays(args)
     args = args.replace(')', '').split(',')
+    args = [] if len(args) == 1 and args[0] == '' else args
     # return comma back, convert quotation mark to doubled quotation mark for json parsing
     for i, arg in enumerate(args):
         args[i] = arg.replace(';', ',').replace("'", '"')
@@ -250,28 +261,33 @@ def add_expression(queryset, size, value, value_name):
 
     # permutation sampling
     if command == 'sample':
+        assert len(args) == 0, "sample() doesn't have arguments"
         values = random.sample(range(0, size), size)
         for i, v in enumerate(values):
             tasks[i].data[value_name] = v
 
     # uniform random
     elif command == 'random':
+        assert len(args) == 2, 'random() should have 2 args: min & max'
         minimum, maximum = int(args[0]), int(args[1])
         for i in range(size):
             tasks[i].data[value_name] = random.randint(minimum, maximum)
 
     # sampling with choices and weights
     elif command == 'choices':
+        assert 0 < len(args) < 3, 'choices() should have 1 or 2 args: values & weights (default=None)'
+        weights = json.loads(args[1]) if len(args) == 2 else None
         values = random.choices(
             population=json.loads(args[0]),
-            weights=json.loads(args[1]),
+            weights=weights,
             k=size
         )
         for i, v in enumerate(values):
             tasks[i].data[value_name] = v
 
-    # replaceg
+    # replace
     elif command == 'replace':
+        assert len(args) == 2, 'replace() should have 2 args: old value & new value'
         old_value, new_value = json.loads(args[0]), json.loads(args[1])
         for task in tasks:
             if value_name in task.data:
