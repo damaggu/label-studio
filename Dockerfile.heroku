@@ -1,4 +1,4 @@
-FROM heartexlabs/label-studio:latest
+FROM marksma/behaviorhub:latest
 
 COPY deploy/heroku_run.sh /label-studio/deploy/
 
