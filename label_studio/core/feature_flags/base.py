@@ -93,16 +93,17 @@ def all_flags(user):
     """Return the output of this method in API response, to bootstrap client-side flags.
     More on https://docs.launchdarkly.com/sdk/features/bootstrapping#javascript
     """
-    logger.debug(f'Get all_flags request for {user}')
     user_dict = _get_user_repr(user)
-    logger.debug(f'Resolve all flags state {user_dict}')
+    logger.debug(f'Resolve all flags state for user {user_dict}')
     state = client.all_flags_state(user_dict)
-    logger.debug(f'State received: {state}')
     flags = state.to_json_dict()
-    logger.debug(f'Flags received: {flags}')
+
     env_ff = get_all_env_with_prefix('ff_', is_bool=True)
-    logger.debug(f'Override by flags from env: {env_ff}')
+    env_fflag = get_all_env_with_prefix('fflag_', is_bool=True)
+    env_fflag2 = get_all_env_with_prefix('fflag-', is_bool=True)
+    env_ff.update(env_fflag)
+    env_ff.update(env_fflag2)
+
     for env_flag_name, env_flag_on in env_ff.items():
         flags[env_flag_name] = env_flag_on
-    logger.debug(f'Requested all active feature flags: {flags}')
     return flags
