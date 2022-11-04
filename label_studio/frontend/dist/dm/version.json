@@ -1,6 +1,6 @@
 {
-  "message": "fix: DEV-3606: Trying to save something that doesn't exist",
-  "commit": "c9f2f97231d543962dcaadf93877ae09a852d6a9",
+  "message": "fix: DEV-3673: Navigation using task links is broken (#124)",
+  "commit": "11b5975d499f63e96eae988be7bca7aa7bb31557",
   "branch": "master",
-  "date": "2022/10/17 13:41:52"
+  "date": "2022-11-03T15:53:51Z"
 }
